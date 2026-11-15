@@ -1,4 +1,4 @@
-A demonstration recorder for Godot 4.7+. A dedicated server records what players do, as episodes in a schema your game declares, so bots can learn from them. Part of the [dot-*](https://github.com/modcommunity) family. It needs only [dot-core](https://github.com/modcommunity/dot-core).
+A demonstration recorder for Godot 4.7+. A dedicated server records what players do, as episodes in a schema your game declares, so bots can learn from them. Part of the [dot-*](https://github.com/gamespice-platform) family. It needs only [dot-core](https://github.com/gamespice-platform/core).
 
 Nothing identifying is kept. Recording is on by default and is switched off with `bot_record 0`.
 
@@ -16,7 +16,7 @@ The recorder samples fast while a key has few recordings and falls to a base rat
 | Store | Use it for |
 | --- | --- |
 | JSON files (default) | One file per map version and kind. |
-| SQL | Through [dot-sql](https://github.com/modcommunity/dot-sql), by duck typing. |
+| SQL | Through [dot-sql](https://github.com/gamespice-platform/sql), by duck typing. |
 | Memory | Tests. |
 
 The settings, the schema and the privacy rules are in [docs/demonstration-recorder.md](docs/demonstration-recorder.md).
