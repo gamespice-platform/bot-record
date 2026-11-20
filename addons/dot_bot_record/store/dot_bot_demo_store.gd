@@ -47,7 +47,7 @@ func describe_lines() -> PackedStringArray:
 	return PackedStringArray()
 
 
-## The store [param config] names, not yet open; null for "off". A database setting without dot-sql installed is said at ERROR and the JSON store is used.
+## The store [param config] names, not yet open; null for "off". A database setting without GameSpice SQL installed is said at ERROR and the JSON store is used.
 static func from_config(config: DotBotDemoConfig, host: Node = null) -> DotResult:
 	match config.store:
 		"off":
@@ -56,7 +56,7 @@ static func from_config(config: DotBotDemoConfig, host: Node = null) -> DotResul
 			return DotResult.success(DotBotDemoStoreMemory.new())
 		"json":
 			return DotResult.success(DotBotDemoStoreJson.new(config.path))
-	# dot-sql is reached by path: naming DotSql would make a pack fail to parse on a host without it.
+	# GameSpice SQL is reached by path: naming DotSql would make a pack fail to parse on a host without it.
 	var script_path := "res://addons/dot_sql/core/dot_sql.gd"
 	if not ResourceLoader.exists(script_path):
 		DotLog.error("bot.demo.store", "bot_record_store is %s but dot-sql is not installed; recording to files" % config.store)

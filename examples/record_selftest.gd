@@ -1,6 +1,6 @@
 extends Node
 
-## dot-bot-record's suite: the schema, the adaptive rate, the recorder, the batching, the three stores and the off switch.
+## GameSpice Bot Record's suite: the schema, the adaptive rate, the recorder, the batching, the three stores and the off switch.
 ##
 ## Run: godot --headless --path . res://examples/record_selftest.tscn
 
@@ -8,7 +8,7 @@ const Contract := preload("res://examples/record_store_contract.gd")
 
 const CHECKS := 96
 
-## Of CHECKS, the ones that need dot-sql and the SQLite extension linked into this project.
+## Of CHECKS, the ones that need GameSpice SQL and the SQLite extension linked into this project.
 const SQL_CHECKS := 14
 
 ## Sections entered against sections that ran to their last line.
@@ -22,7 +22,7 @@ var _entered := 0
 var _completed := 0
 
 
-## A cvar shaped like dot-server's DotConVar.
+## A cvar shaped like GameSpice Server's DotConVar.
 class FakeCvar:
 	extends RefCounted
 	signal changed(old_value: String, new_value: String)
@@ -454,7 +454,7 @@ func _test_demo_off_and_privacy() -> void:
 	_done()
 
 
-# Toy simulator and host: dot-player-controller is not linked here, so the harvest is tested
+# Toy simulator and host: GameSpice Player Controller is not linked here, so the harvest is tested
 # through its duck-typed interface; game-fatal-contact's suite runs the real motor.
 
 

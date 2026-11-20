@@ -30,7 +30,7 @@ const STORES: Array[String] = ["json", "sqlite", "postgres", "mysql", "memory", 
 ## The JSON store's directory, or the SQLite file.
 @export var path: String = "user://dot_bot/demos"
 
-## The dot-sql gateway for Postgres and MySQL.
+## The GameSpice SQL gateway for Postgres and MySQL.
 @export var url: String = ""
 
 ## Config file only: never read from the environment or the command line.
@@ -83,7 +83,7 @@ func effective_rate_max(tick_rate: float) -> float:
 	return maxf(rate, tick_rate if rate_max <= 0.0 else rate_max)
 
 
-## Registers a cvar per setting (never the token) through dot-server's `add_cvar`, by duck typing; returns them.
+## Registers a cvar per setting (never the token) through GameSpice Server's `add_cvar`, by duck typing; returns them.
 func bind_cvars(add: Callable, flags: int = 0) -> Array:
 	var made: Array = []
 	for key in config_keys():

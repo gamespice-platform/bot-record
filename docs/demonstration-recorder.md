@@ -1,4 +1,4 @@
-This addon was extracted from dot-bot. Everything named `DotBotRide*`, `DotBotDemoHeatmap`, `DotBotAimStats`, `DotBotMlp` and the `tools/` below stays in dot-bot, which uses the recorder's stores and episodes duck-typed.
+This addon was extracted from GameSpice Bot. Everything named `DotBotRide*`, `DotBotDemoHeatmap`, `DotBotAimStats`, `DotBotMlp` and the `tools/` below stays in GameSpice Bot, which uses the recorder's stores and episodes duck-typed.
 
 # Demonstration recorder
 
@@ -39,7 +39,7 @@ The recorder runs where the authoritative motor runs: a dedicated server or a li
 | `bot_record_cap` | `200` | episodes kept per key; past it a new one replaces the worst-scored |
 | `bot_record_store` | `json` | `json`, `sqlite`, `postgres`, `mysql`, `off` |
 | `bot_record_path` | `user://dot_bot/demos` | the JSON store's directory, or the SQLite file |
-| `bot_record_url`, `bot_record_token` | `""` | the dot-sql gateway for Postgres and MySQL; the token is a sensitive key (config file only) |
+| `bot_record_url`, `bot_record_token` | `""` | the GameSpice SQL gateway for Postgres and MySQL; the token is a sensitive key (config file only) |
 | `bot_record_flush` | `10` s | how often queued episodes are written |
 
 `DotBotDemoConfig` is a `DotConfig` (defaults < JSON file < environment < command line; `sensitive_keys` refuses the token from environment and argv), bound to cvars by `bind_cvars(add)` the way `DotBotSettings` is, and `describe_lines()` says what is on, the rate per key, what is queued and what was written.
@@ -68,7 +68,7 @@ Nothing else: no player name, account, peer number, address, team or chat. See [
 
 ## Storage
 
-One interface, `DotBotDemoStore` (`RefCounted`, every method returns `DotResult` and may be a coroutine, always `await`), with the shape dot-stats' and dot-timer's stores already have:
+One interface, `DotBotDemoStore` (`RefCounted`, every method returns `DotResult` and may be a coroutine, always `await`), with the shape GameSpice Stats' and GameSpice Timer's stores already have:
 
 | Method | What |
 | --- | --- |
@@ -92,13 +92,13 @@ The game (game-fatal-contact's `fc_surf.gd`) declares the `ride` schema: observa
 
 ### Verifying it
 
-`DotBotRideHarvest` (dot-bot, `runtime/surf/`) turns episodes into cache rides:
+`DotBotRideHarvest` (GameSpice Bot, `runtime/surf/`) turns episodes into cache rides:
 
 1. **Quantise.** Each kept tick's command becomes the nearest `DotBotSurfPilot.ACTIONS` entry for that tick's velocity (actions are relative to the velocity, `ANCHORED_FROM` included), held for the gap the rate left.
 2. **Replay.** From `start`, the pilot rides the simulator (duck typed: a game hands its `DotFpsSimulator` per edge, as it already does for the planner) with this ride alone as its cache, tracking on, veto on. That is what a bot will actually do with it, so a ride the pilot cannot follow is not worth keeping however good the player was.
 3. **Keep or reject.** Kept when the course (`DotBotSurfCourse` for that landing) says it landed on the recorded island; the episode is marked `verified` and its `score` is its landing rate from six perturbed starts (the planner's own perturbation). Otherwise marked unverified and never loaded again.
 
-Verification costs a ride's length in simulated ticks a start, so it never runs on the tick: on a server it is a `DotJob` on dot-core's `DotScheduler` (threads where `has_threads()`, a frame budget otherwise, capped at 2 ms a frame), and the offline tool runs it in bulk.
+Verification costs a ride's length in simulated ticks a start, so it never runs on the tick: on a server it is a `DotJob` on GameSpice Core's `DotScheduler` (threads where `has_threads()`, a frame budget otherwise, capped at 2 ms a frame), and the offline tool runs it in bulk.
 
 ### As built
 
@@ -126,16 +126,16 @@ Two consumers of the same recordings that change bot settings, not bot code.
 
 - **Positioning heatmaps** (`DotBotDemoHeatmap`): kind `place`, one sample a second per living player (position, a host label such as a team or role, whether they were in a fight), binned per map version on a 2 m grid with a decay so a changed meta fades out. A brain reads it through `DotBotWorld.waypoints_fn`: roaming bots weight waypoints by how often people stand there, hiders' `DotBotHiding.survey` can prefer or avoid the places seekers look first. A cell is only used past a minimum count, so one player's habit never shows.
 - **Aim and reaction statistics** (`DotBotAimStats`): kind `engage`, begun when the host says a player first had an enemy in view and ended at their first hit or when it left view: reaction (sight to first shot), the view's error over the first second, tracking error while it moves, time to kill. Folded per map version and game into percentile sketches (no episode kept once folded). `DotBotAimStats.suggest(profile_spec)` maps percentiles onto `DotBotProfile.SPEC` rows within their ranges: easy at the 20th percentile of people, medium at the 50th, hard at the 80th, nightmare clamped by the existing floors (reaction above 0.1 s, aim floor above 0). The suggestion is printed by a tool and reviewed by a person; presets are not rewritten by a server on its own. Samples faster than any person (reaction under 0.1 s, error under the floor) are dropped as cheats, and a host can exclude a session by `include_fn` (a moderation flag).
-- **dot-npc-ai** takes the same percentile dictionary in `DotNpcAiCharacter.from_percentiles(dict)`, duck typed, so an NPC's character can come from people too without either addon naming the other.
+- **GameSpice NPC AI** takes the same percentile dictionary in `DotNpcAiCharacter.from_percentiles(dict)`, duck typed, so an NPC's character can come from people too without either addon naming the other.
 
 ## Stage 3: behaviour cloning
 
 A small network copies what people do in a state, for the parts no search or rule covers well. Never an LLM in the control loop: the policy is a fixed function of the observation, run every think.
 
 - **Dataset export** (`tools/demo_export.gd` in dot-bot): a store's verified episodes of one kind to a directory of shards, `manifest.json` (schema fields with sizes and scales, map ids and versions, counts, a train/held-out split by episode, never by tick, so a held-out ride is truly unseen) and `shard_N.f32` (little-endian float32 rows, observation then action). Plain bytes, so the trainer needs no Godot.
-- **Training** (`tools/bc/train.py` in dot-bot): PyTorch, run on the GPU boxes with `~/godot/gpu.sh py -- python3 tools/bc/train.py <export dir>` (staging02's RTX 2070, the laptop when it is off). A multilayer perceptron, at most two hidden layers of 64, tanh, continuous action fields regressed and button fields as logits; trained with dataset aggregation where a simulator exists (the planner's repair rounds already do this for rides).
+- **Training** (`tools/bc/train.py` in GameSpice Bot): PyTorch, run on the GPU boxes with `~/godot/gpu.sh py -- python3 tools/bc/train.py <export dir>` (staging02's RTX 2070, the laptop when it is off). A multilayer perceptron, at most two hidden layers of 64, tanh, continuous action fields regressed and button fields as logits; trained with dataset aggregation where a simulator exists (the planner's repair rounds already do this for rides).
 - **Weights** (`.dotmlp`): a JSON header (schema id, layer sizes, activations, the input scales, the training run's metrics) and the float32 weights in a sibling `.f32`, both under the map or game's data, versioned with the schema id. A file whose schema id does not match the game's is refused at load.
-- **Inference** (`DotBotMlp`, dot-bot): a forward pass over `PackedFloat32Array`, no allocation per call. A 16-64-64-6 net is about 5,500 multiply-adds, roughly 0.2 to 0.4 ms in GDScript; at the dot-npc-ai scheduler's tiers (every tick for a bot near a player, every Nth otherwise; `DotNpcAiScheduler.admit`) and a 16 Hz think, that is under 1% of a core per bot. The action is held between thinks, as the pilot already holds its actions.
+- **Inference** (`DotBotMlp`, GameSpice Bot): a forward pass over `PackedFloat32Array`, no allocation per call. A 16-64-64-6 net is about 5,500 multiply-adds, roughly 0.2 to 0.4 ms in GDScript; at the GameSpice NPC AI scheduler's tiers (every tick for a bot near a player, every Nth otherwise; `DotNpcAiScheduler.admit`) and a 16 Hz think, that is under 1% of a core per bot. The action is held between thinks, as the pilot already holds its actions.
 - **Evaluation gate** (`tools/demo_eval.gd`): replay the held-out episodes' start states on the game's simulator, once with the policy and once with the fixed baseline it would replace (the pilot for rides, the scripted brain for roaming), with seeded perturbations. The policy is only switched on by default (`bot_policy` cvar, default `0`) for a kind when it beats the baseline on that kind's own metric (landing rate, reaching the next waypoint, time alive) by a margin over the seeds' spread, on every map in the held-out set, and the gate's report is committed beside the weights. A policy that loses on one map is off on that map.
 
 ## Privacy
@@ -152,19 +152,19 @@ Each piece is one repository, sized S (an hour or two of a builder, under 300 li
 
 | Key | Repo | What | Size | After |
 | --- | --- | --- | --- | --- |
-| `demo-rec-core` | dot-bot | `DotBotDemoSchema`, `DotBotDemoEpisode`, `DotBotDemoRecorder` (begin/sample/end/cancel, include_fn, adaptive rate, queue, flush), `DotBotDemoConfig` + `bind_cvars`, `DotBotDemoStore` base and the memory store; suite sections: a fake host records, a bot is refused, the rate falls as the count rises, a full queue drops oldest | L | - |
-| `demo-rec-stores` | dot-bot | `DotBotDemoStoreJson`, `DotBotDemoStoreSql` (migration, batch insert, counts, prune), `from_config` loading dot-sql by path; offline suite on the JSON and recording driver, a live suite run by dot-sql's `tools/test_live.sh` on SQLite (Postgres and MariaDB where available, never `tmc_dev`) | M | `demo-rec-core` |
-| `demo-ride-harvest` | dot-bot | `DotBotRideHarvest` (quantise, pilot replay, keep or reject, score), `DotJob` scheduling with a frame budget, rides merged with source and success; ride choice among an edge's top rides in `DotBotSurfRide`; suite: a good toy ride kept, a bad one rejected, choice is seeded | M | `demo-rec-core` |
+| `demo-rec-core` | GameSpice Bot | `DotBotDemoSchema`, `DotBotDemoEpisode`, `DotBotDemoRecorder` (begin/sample/end/cancel, include_fn, adaptive rate, queue, flush), `DotBotDemoConfig` + `bind_cvars`, `DotBotDemoStore` base and the memory store; suite sections: a fake host records, a bot is refused, the rate falls as the count rises, a full queue drops oldest | L | - |
+| `demo-rec-stores` | GameSpice Bot | `DotBotDemoStoreJson`, `DotBotDemoStoreSql` (migration, batch insert, counts, prune), `from_config` loading GameSpice SQL by path; offline suite on the JSON and recording driver, a live suite run by GameSpice SQL's `tools/test_live.sh` on SQLite (Postgres and MariaDB where available, never `tmc_dev`) | M | `demo-rec-core` |
+| `demo-ride-harvest` | GameSpice Bot | `DotBotRideHarvest` (quantise, pilot replay, keep or reject, score), `DotJob` scheduling with a frame budget, rides merged with source and success; ride choice among an edge's top rides in `DotBotSurfRide`; suite: a good toy ride kept, a bad one rejected, choice is seeded | M | `demo-rec-core` |
 | `arena-ride-recording` | game-fatal-contact | the `ride` schema and segmenting in `fc_surf.gd`, recorder and store from the game's config, recorded rides loaded with the planned cache, `tools/surf_rides.tscn --harvest` and `--demos`; `headless_imported` records simulated players' rides, harvests them and has a bot ride a recorded edge | L | `demo-rec-stores`, `demo-ride-harvest` |
-| `deploy-demo-cfg` | dot-server-deploy | `cfg/bot_record.yml` documenting every key and the rules text, read into the game's `DotBotDemoConfig` by the host the way `replay.yml` is | S | `demo-rec-core` |
-| `demo-heatmap` | dot-bot | `DotBotDemoHeatmap` (kind `place`, grid, decay, minimum count) and a `waypoints_fn` weighting helper; suite | M | `demo-rec-stores` |
-| `demo-aim-stats` | dot-bot | `DotBotAimStats` (kind `engage`, percentile sketches, cheat floor, `suggest` onto `SPEC`) and a tool that prints a suggested preset table; suite | M | `demo-rec-stores` |
+| `deploy-demo-cfg` | GameSpice Server Deploy | `cfg/bot_record.yml` documenting every key and the rules text, read into the game's `DotBotDemoConfig` by the host the way `replay.yml` is | S | `demo-rec-core` |
+| `demo-heatmap` | GameSpice Bot | `DotBotDemoHeatmap` (kind `place`, grid, decay, minimum count) and a `waypoints_fn` weighting helper; suite | M | `demo-rec-stores` |
+| `demo-aim-stats` | GameSpice Bot | `DotBotAimStats` (kind `engage`, percentile sketches, cheat floor, `suggest` onto `SPEC`) and a tool that prints a suggested preset table; suite | M | `demo-rec-stores` |
 | `arena-demo-stats` | game-fatal-contact | `place` and `engage` episodes from the FC sight and hit events; roaming weighted by the heatmap; `headless_bots` still passes | M | `demo-heatmap`, `demo-aim-stats` |
-| `npc-character-from-stats` | dot-npc-ai | `DotNpcAiCharacter.from_percentiles(dict)`, duck typed; suite | S | `demo-aim-stats` |
-| `bc-export` | dot-bot | `tools/demo_export.gd`: manifest and float32 shards, split by episode; suite reads a shard back | S | `demo-rec-stores` |
-| `bc-train` | dot-bot | `tools/bc/train.py` (PyTorch, MLP, DAgger hook), `.dotmlp` writer, run once on staging02 through `gpu.sh py` on a toy export | M | `bc-export` |
-| `bc-mlp-runtime` | dot-bot | `DotBotMlp` (load, schema check, allocation-free forward), a policy intent writer, the `bot_policy` cvar default off; suite: matches the trainer's output on fixed inputs to 1e-5, cost measured | M | `bc-train` |
-| `bc-eval-gate` | dot-bot | `tools/demo_eval.gd`: held-out starts, policy against baseline on a host's simulator, seeded, per-map verdict and report | M | `bc-mlp-runtime` |
+| `npc-character-from-stats` | GameSpice NPC AI | `DotNpcAiCharacter.from_percentiles(dict)`, duck typed; suite | S | `demo-aim-stats` |
+| `bc-export` | GameSpice Bot | `tools/demo_export.gd`: manifest and float32 shards, split by episode; suite reads a shard back | S | `demo-rec-stores` |
+| `bc-train` | GameSpice Bot | `tools/bc/train.py` (PyTorch, MLP, DAgger hook), `.dotmlp` writer, run once on staging02 through `gpu.sh py` on a toy export | M | `bc-export` |
+| `bc-mlp-runtime` | GameSpice Bot | `DotBotMlp` (load, schema check, allocation-free forward), a policy intent writer, the `bot_policy` cvar default off; suite: matches the trainer's output on fixed inputs to 1e-5, cost measured | M | `bc-train` |
+| `bc-eval-gate` | GameSpice Bot | `tools/demo_eval.gd`: held-out starts, policy against baseline on a host's simulator, seeded, per-map verdict and report | M | `bc-mlp-runtime` |
 | `arena-bc-trial` | game-fatal-contact | the first cloned policy (rides or roaming), trained on recorded FC episodes, gated by `bc-eval-gate`; stays off unless the gate passes | L | `bc-eval-gate`, `arena-ride-recording` |
 
 Stage 1 is the first five, and is `bot-recorded-rides-1`'s "done when". Stages 2 and 3 can start once `demo-rec-stores` lands and do not block it.

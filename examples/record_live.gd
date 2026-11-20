@@ -1,7 +1,7 @@
 extends Node
 
-## The demonstration SQL store against a real database through dot-sql's gateway: the shared store contract.
-## Run by dot-sql's runner once per dialect: [code]tools/test_live.sh[/code].
+## The demonstration SQL store against a real database through GameSpice SQL's gateway: the shared store contract.
+## Run by GameSpice SQL's runner once per dialect: [code]tools/test_live.sh[/code].
 
 const Contract := preload("res://examples/record_store_contract.gd")
 
@@ -29,7 +29,7 @@ func _ready() -> void:
 		"driver": "gateway", "dialect": name, "url": url,
 		"token": FileAccess.get_file_as_string(token_file).strip_edges(),
 	}
-	# dot-sql by path, as the store does, so this file parses without it.
+	# GameSpice SQL by path, as the store does, so this file parses without it.
 	var sql_script: Script = load("res://addons/dot_sql/core/dot_sql.gd")
 	var make := func() -> DotBotDemoStore:
 		var made: DotResult = sql_script.call("from_config", db, self)
