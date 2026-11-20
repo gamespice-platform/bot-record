@@ -1,3 +1,5 @@
+[![dot-bot-record - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/268-dot-bot-record)
+
 A demonstration recorder for Godot 4.7+. A dedicated server records what players do, as episodes in a schema your game declares, so bots can learn from them. Part of the [dot-*](https://github.com/gamespice-platform) family. It needs only [dot-core](https://github.com/gamespice-platform/core).
 
 Nothing identifying is kept. Recording is on by default and is switched off with `bot_record 0`.
