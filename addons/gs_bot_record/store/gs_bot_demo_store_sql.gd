@@ -4,8 +4,8 @@ extends GSBotDemoStore
 ## Episodes in a database through a GameSpice SQL driver, held untyped so GameSpice Bot Record does not need GameSpice SQL.
 ## The column is [code]edge_key[/code] because [code]key[/code] is reserved in one dialect.
 
-const COMPONENT := "dot-bot:demos"
-const TABLE := "dot_bot_demos"
+const COMPONENT := "gs-bot:demos"
+const TABLE := "gs_bot_demos"
 const COLUMNS := "id, map_id, map_version, schema_id, kind, edge_key, day, rate, frame_size, outcome, verified, score, start, ticks"
 
 ## The GameSpice SQL driver, not yet open.
@@ -39,7 +39,7 @@ static func migration_steps() -> Array:
 			{"name": "ticks", "type": "text"},
 		],
 		"primary_key": ["id"],
-		"indexes": [{"name": "dot_bot_demos_by_edge", "columns": ["map_id", "map_version", "kind", "edge_key", "score"]}],
+		"indexes": [{"name": "gs_bot_demos_by_edge", "columns": ["map_id", "map_version", "kind", "edge_key", "score"]}],
 	}]]
 
 

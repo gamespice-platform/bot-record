@@ -2,7 +2,7 @@ This addon was extracted from GameSpice Bot. Everything named `GSBotRide*`, `GSB
 
 # Demonstration recorder
 
-Stage 1's core is built (this addon, `addons/dot_bot_record/`: schema, episode, recorder, config, store base, memory store); the JSON and SQL stores are built (`dot_bot_demo_store_json.gd`, `dot_bot_demo_store_sql.gd`, `GSBotDemoStore.from_config`); the ride harvest (`GSBotRideHarvest`, `GSBotRideBook`, `GSBotRideConfig` in `runtime/surf/`) is built as the replay of the recorded commands described below; pilot quantisation and statistics are not. A dedicated server records what real players do, as observations and actions in a schema each game declares, and bots learn from it: first as ride routes (surf rides, verified on the motor), then as plain statistics (where people stand, how fast they react), and last as a small policy network cloned from the recordings. Everything game-specific is declared by the host; dot-bot keeps naming no other addon.
+Stage 1's core is built (this addon, `addons/gs_bot_record/`: schema, episode, recorder, config, store base, memory store); the JSON and SQL stores are built (`gs_bot_demo_store_json.gd`, `gs_bot_demo_store_sql.gd`, `GSBotDemoStore.from_config`); the ride harvest (`GSBotRideHarvest`, `GSBotRideBook`, `GSBotRideConfig` in `runtime/surf/`) is built as the replay of the recorded commands described below; pilot quantisation and statistics are not. A dedicated server records what real players do, as observations and actions in a schema each game declares, and bots learn from it: first as ride routes (surf rides, verified on the motor), then as plain statistics (where people stand, how fast they react), and last as a small policy network cloned from the recordings. Everything game-specific is declared by the host; gs-bot keeps naming no other addon.
 
 ## Why
 
@@ -12,7 +12,7 @@ The offline search (`GSBotSurfPlanner`, a game's `tools/surf_rides.tscn`) proves
 
 ### What a host declares
 
-A game hands the recorder a `GSBotDemoSchema` per kind of episode: a name (`"ride"`), a version, and two ordered field lists, observation and action, each field a name, a size and a scale (the number a value is divided by so most of it lands in -1..1). The schema's id is a hash of its fields, so a game that changes what it records starts a new set instead of mixing two. dot-bot hardcodes nothing about bodies, weapons or buttons; a surf ride's observation is position and velocity and its action is the command the server applied (yaw, pitch, the stick, the buttons), and another game's observation can be a hiding spot's sight lines.
+A game hands the recorder a `GSBotDemoSchema` per kind of episode: a name (`"ride"`), a version, and two ordered field lists, observation and action, each field a name, a size and a scale (the number a value is divided by so most of it lands in -1..1). The schema's id is a hash of its fields, so a game that changes what it records starts a new set instead of mixing two. gs-bot hardcodes nothing about bodies, weapons or buttons; a surf ride's observation is position and velocity and its action is the command the server applied (yaw, pitch, the stick, the buttons), and another game's observation can be a hiding spot's sight lines.
 
 The host also tells the recorder when an episode starts and ends, because only the game knows what a "ride" or an "engagement" is:
 
@@ -38,7 +38,7 @@ The recorder runs where the authoritative motor runs: a dedicated server or a li
 | `bot_record_target` | `40` | verified episodes per key at which the rate is back at base |
 | `bot_record_cap` | `200` | episodes kept per key; past it a new one replaces the worst-scored |
 | `bot_record_store` | `json` | `json`, `sqlite`, `postgres`, `mysql`, `off` |
-| `bot_record_path` | `user://dot_bot/demos` | the JSON store's directory, or the SQLite file |
+| `bot_record_path` | `user://gs_bot/demos` | the JSON store's directory, or the SQLite file |
 | `bot_record_url`, `bot_record_token` | `""` | the GameSpice SQL gateway for Postgres and MySQL; the token is a sensitive key (config file only) |
 | `bot_record_flush` | `10` s | how often queued episodes are written |
 
@@ -81,7 +81,7 @@ One interface, `GSBotDemoStore` (`RefCounted`, every method returns `GSResult` a
 | `describe_lines()` | |
 
 - `GSBotDemoStoreJson`, the default: one file per map version and kind, `<path>/<map_id>@<version>/<kind>.json`, written whole from the store's in-memory copy (a ride file is kilobytes to a few megabytes). The offline tools write the same files, so a seeded map and a recorded one are read the same way. A game's planned cache (`maps/surf/<id>.surf.json`) stays where it is and is the seed; the recorded file sits beside it in `user://`.
-- `GSBotDemoStoreSql`: an untyped driver (`query`, `execute`, `batch`, `migrate`), migration component `dot-bot:demos`, one table `dot_bot_demos` (id, map_id, map_version, schema_id, kind, edge_key, day, rate, outcome, verified, score, start as JSON text, ticks as base64 of the float bytes). `key` is a reserved word in one of the three dialects, so the column is `edge_key`. `GSBotDemoStore.from_config(config, host)` loads `res://addons/dot_sql/core/dot_sql.gd` by path, the way game-airdrift's records store does, so dot-bot never names a `GSSql*` class; without dot-sql installed a database setting is said at ERROR and the JSON store is used.
+- `GSBotDemoStoreSql`: an untyped driver (`query`, `execute`, `batch`, `migrate`), migration component `gs-bot:demos`, one table `gs_bot_demos` (id, map_id, map_version, schema_id, kind, edge_key, day, rate, outcome, verified, score, start as JSON text, ticks as base64 of the float bytes). `key` is a reserved word in one of the three dialects, so the column is `edge_key`. `GSBotDemoStore.from_config(config, host)` loads `res://addons/gs_sql/core/gs_sql.gd` by path, the way game-airdrift's records store does, so gs-bot never names a `GSSql*` class; without gs-sql installed a database setting is said at ERROR and the JSON store is used.
 - `GSBotDemoStoreMemory` for suites.
 
 ## The first consumer: surf rides
@@ -114,7 +114,7 @@ A game's `tools/surf_rides.tscn` keeps `--explore`, `--plan` and `--measure`, an
 
 ### Where the code lives
 
-| dot-bot (nothing surf- or game-specific beyond `runtime/surf/`) | game-fatal-contact |
+| gs-bot (nothing surf- or game-specific beyond `runtime/surf/`) | game-fatal-contact |
 | --- | --- |
 | `GSBotDemoSchema`, `GSBotDemoEpisode`, `GSBotDemoRecorder`, `GSBotDemoConfig`, the three stores, `GSBotRideHarvest`, ride choice in `GSBotSurfRide`, the suite sections on a toy simulator | the `ride` schema, `begin`/`sample`/`end` from the island tests it already has, the map id and version from its session, the store from its config, the arena's surf tuning in the simulator it hands over, `tools/surf_rides.tscn --harvest`, `headless_imported` riding a recorded edge |
 
@@ -132,9 +132,9 @@ Two consumers of the same recordings that change bot settings, not bot code.
 
 A small network copies what people do in a state, for the parts no search or rule covers well. Never an LLM in the control loop: the policy is a fixed function of the observation, run every think.
 
-- **Dataset export** (`tools/demo_export.gd` in dot-bot): a store's verified episodes of one kind to a directory of shards, `manifest.json` (schema fields with sizes and scales, map ids and versions, counts, a train/held-out split by episode, never by tick, so a held-out ride is truly unseen) and `shard_N.f32` (little-endian float32 rows, observation then action). Plain bytes, so the trainer needs no Godot.
+- **Dataset export** (`tools/demo_export.gd` in gs-bot): a store's verified episodes of one kind to a directory of shards, `manifest.json` (schema fields with sizes and scales, map ids and versions, counts, a train/held-out split by episode, never by tick, so a held-out ride is truly unseen) and `shard_N.f32` (little-endian float32 rows, observation then action). Plain bytes, so the trainer needs no Godot.
 - **Training** (`tools/bc/train.py` in GameSpice Bot): PyTorch, run on the GPU boxes with `~/godot/gpu.sh py -- python3 tools/bc/train.py <export dir>` (staging02's RTX 2070, the laptop when it is off). A multilayer perceptron, at most two hidden layers of 64, tanh, continuous action fields regressed and button fields as logits; trained with dataset aggregation where a simulator exists (the planner's repair rounds already do this for rides).
-- **Weights** (`.dotmlp`): a JSON header (schema id, layer sizes, activations, the input scales, the training run's metrics) and the float32 weights in a sibling `.f32`, both under the map or game's data, versioned with the schema id. A file whose schema id does not match the game's is refused at load.
+- **Weights** (`.gsmlp`): a JSON header (schema id, layer sizes, activations, the input scales, the training run's metrics) and the float32 weights in a sibling `.f32`, both under the map or game's data, versioned with the schema id. A file whose schema id does not match the game's is refused at load.
 - **Inference** (`GSBotMlp`, GameSpice Bot): a forward pass over `PackedFloat32Array`, no allocation per call. A 16-64-64-6 net is about 5,500 multiply-adds, roughly 0.2 to 0.4 ms in GDScript; at the GameSpice NPC AI scheduler's tiers (every tick for a bot near a player, every Nth otherwise; `GSNpcAiScheduler.admit`) and a 16 Hz think, that is under 1% of a core per bot. The action is held between thinks, as the pilot already holds its actions.
 - **Evaluation gate** (`tools/demo_eval.gd`): replay the held-out episodes' start states on the game's simulator, once with the policy and once with the fixed baseline it would replace (the pilot for rides, the scripted brain for roaming), with seeded perturbations. The policy is only switched on by default (`bot_policy` cvar, default `0`) for a kind when it beats the baseline on that kind's own metric (landing rate, reaching the next waypoint, time alive) by a margin over the seeds' spread, on every map in the held-out set, and the gate's report is committed beside the weights. A policy that loses on one map is off on that map.
 
@@ -162,7 +162,7 @@ Each piece is one repository, sized S (an hour or two of a builder, under 300 li
 | `arena-demo-stats` | game-fatal-contact | `place` and `engage` episodes from the FC sight and hit events; roaming weighted by the heatmap; `headless_bots` still passes | M | `demo-heatmap`, `demo-aim-stats` |
 | `npc-character-from-stats` | GameSpice NPC AI | `GSNpcAiCharacter.from_percentiles(dict)`, duck typed; suite | S | `demo-aim-stats` |
 | `bc-export` | GameSpice Bot | `tools/demo_export.gd`: manifest and float32 shards, split by episode; suite reads a shard back | S | `demo-rec-stores` |
-| `bc-train` | GameSpice Bot | `tools/bc/train.py` (PyTorch, MLP, DAgger hook), `.dotmlp` writer, run once on staging02 through `gpu.sh py` on a toy export | M | `bc-export` |
+| `bc-train` | GameSpice Bot | `tools/bc/train.py` (PyTorch, MLP, DAgger hook), `.gsmlp` writer, run once on staging02 through `gpu.sh py` on a toy export | M | `bc-export` |
 | `bc-mlp-runtime` | GameSpice Bot | `GSBotMlp` (load, schema check, allocation-free forward), a policy intent writer, the `bot_policy` cvar default off; suite: matches the trainer's output on fixed inputs to 1e-5, cost measured | M | `bc-train` |
 | `bc-eval-gate` | GameSpice Bot | `tools/demo_eval.gd`: held-out starts, policy against baseline on a host's simulator, seeded, per-map verdict and report | M | `bc-mlp-runtime` |
 | `arena-bc-trial` | game-fatal-contact | the first cloned policy (rides or roaming), trained on recorded FC episodes, gated by `bc-eval-gate`; stays off unless the gate passes | L | `bc-eval-gate`, `arena-ride-recording` |

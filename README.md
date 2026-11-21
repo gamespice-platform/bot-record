@@ -6,7 +6,7 @@ Nothing identifying is kept. Recording is on by default and is switched off with
 
 ## Install
 
-1. Copy `addons/dot_bot_record/` and `addons/dot_core/` into your project.
+1. Copy `addons/gs_bot_record/` and `addons/gs_core/` into your project.
 2. Enable the plugin in *Project > Project Settings > Plugins*.
 
 ## Use

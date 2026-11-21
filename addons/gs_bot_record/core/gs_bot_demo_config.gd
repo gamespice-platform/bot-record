@@ -28,7 +28,7 @@ const STORES: Array[String] = ["json", "sqlite", "postgres", "mysql", "memory", 
 @export var store: String = "json"
 
 ## The JSON store's directory, or the SQLite file.
-@export var path: String = "user://dot_bot/demos"
+@export var path: String = "user://gs_bot/demos"
 
 ## The GameSpice SQL gateway for Postgres and MySQL.
 @export var url: String = ""
@@ -43,7 +43,7 @@ var _cvars: Dictionary = {}
 
 
 func env_prefix() -> String:
-	return "DOT_BOT_RECORD_"
+	return "GS_BOT_RECORD_"
 
 
 func cli_prefix() -> String:

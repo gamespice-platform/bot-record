@@ -57,9 +57,9 @@ static func from_config(config: GSBotDemoConfig, host: Node = null) -> GSResult:
 		"json":
 			return GSResult.success(GSBotDemoStoreJson.new(config.path))
 	# GameSpice SQL is reached by path: naming GSSql would make a pack fail to parse on a host without it.
-	var script_path := "res://addons/dot_sql/core/dot_sql.gd"
+	var script_path := "res://addons/gs_sql/core/gs_sql.gd"
 	if not ResourceLoader.exists(script_path):
-		GSLog.error("bot.demo.store", "bot_record_store is %s but dot-sql is not installed; recording to files" % config.store)
+		GSLog.error("bot.demo.store", "bot_record_store is %s but gs-sql is not installed; recording to files" % config.store)
 		return GSResult.success(GSBotDemoStoreJson.new(config.path))
 	var db := {"driver": "sqlite", "dialect": "sqlite", "path": config.path}
 	if config.store == "sqlite":

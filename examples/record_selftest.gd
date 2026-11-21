@@ -68,7 +68,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-bot-record self-test")
+	print("gs-bot-record self-test")
 	print("")
 
 	_test_demo_schema()
@@ -313,7 +313,7 @@ func _test_demo_batching() -> void:
 
 func _test_demo_store_json() -> void:
 	_section("demonstration JSON store: round trip, versions, prune, corrupt file, the tick budget")
-	var dir := "user://dot_bot_test_%d" % randi()
+	var dir := "user://gs_bot_test_%d" % randi()
 	var make := func() -> GSBotDemoStore: return GSBotDemoStoreJson.new(dir)
 	var store: GSBotDemoStoreJson = make.call()
 	var _o := await store.open()
@@ -368,14 +368,14 @@ func _test_demo_store_json() -> void:
 
 
 func _test_demo_store_sql() -> void:
-	_section("demonstration SQL store: the same contract on SQLite through dot-sql, by duck typing")
-	var script_path := "res://addons/dot_sql/core/dot_sql.gd"
+	_section("demonstration SQL store: the same contract on SQLite through gs-sql, by duck typing")
+	var script_path := "res://addons/gs_sql/core/gs_sql.gd"
 	if not ResourceLoader.exists(script_path) or not FileAccess.file_exists("res://addons/godot-sqlite/gdsqlite.gdextension"):
-		print("  SKIP  dot-sql or godot-sqlite is not linked into this project (addons/dot_sql, addons/godot-sqlite)")
+		print("  SKIP  gs-sql or godot-sqlite is not linked into this project (addons/gs_sql, addons/godot-sqlite)")
 		_done()
 		return
 	_sql_ran = true
-	var db := "user://dot_bot_test_%d.db" % randi()
+	var db := "user://gs_bot_test_%d.db" % randi()
 	var make := func() -> GSBotDemoStore:
 		var cfg := GSBotDemoConfig.new()
 		cfg.store = "sqlite"
@@ -385,7 +385,7 @@ func _test_demo_store_sql() -> void:
 		var _o: GSResult = await s.open()
 		return s
 	var store: GSBotDemoStore = await make.call()
-	_check(store is GSBotDemoStoreSql, "from_config builds the SQL store from the config, dot-sql loaded by path")
+	_check(store is GSBotDemoStoreSql, "from_config builds the SQL store from the config, gs-sql loaded by path")
 	var opened: GSResult = await store.open()
 	_check(opened.ok, "the migration creates the table", str(opened.error.message if not opened.ok else ""))
 	var again: GSResult = await store.open()

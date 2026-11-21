@@ -8,7 +8,7 @@ const CHANNEL := "bot.demo.store"
 const FORMAT := 1
 
 ## The directory the files live under.
-var path: String = "user://dot_bot/demos"
+var path: String = "user://gs_bot/demos"
 
 ## Files moved aside because they would not parse.
 var recovered: int = 0
@@ -20,7 +20,7 @@ var _files: Dictionary = {}
 var _last_id: int = 0
 
 
-func _init(p_path: String = "user://dot_bot/demos") -> void:
+func _init(p_path: String = "user://gs_bot/demos") -> void:
 	path = p_path
 
 

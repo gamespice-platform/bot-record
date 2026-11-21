@@ -16,17 +16,17 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 | Path | What |
 | --- | --- |
-| `addons/dot_bot_record/core/` | `GSBotDemoSchema` (host-declared fields), `GSBotDemoEpisode`, `GSBotDemoRecorder` (begin/sample/end/cancel, adaptive rate, queue, budgeted writes via `process`), `GSBotDemoConfig` (`bot_record*`, ON by default) |
-| `addons/dot_bot_record/store/` | `GSBotDemoStore` (base, `from_config`), `GSBotDemoStoreMemory`, `GSBotDemoStoreJson`, `GSBotDemoStoreSql` |
+| `addons/gs_bot_record/core/` | `GSBotDemoSchema` (host-declared fields), `GSBotDemoEpisode`, `GSBotDemoRecorder` (begin/sample/end/cancel, adaptive rate, queue, budgeted writes via `process`), `GSBotDemoConfig` (`bot_record*`, ON by default) |
+| `addons/gs_bot_record/store/` | `GSBotDemoStore` (base, `from_config`), `GSBotDemoStoreMemory`, `GSBotDemoStoreJson`, `GSBotDemoStoreSql` |
 | `examples/record_selftest.tscn` | the suite |
 | `examples/record_live.tscn`, `tools/test_live.sh` | the SQL store against a real database through the GameSpice SQL gateway (SQLite and the extension here; PostgreSQL and MariaDB when `GS_SQL_PG_DSN` / `GS_SQL_MYSQL_DSN` are set) |
 
 ## Rules that bite
 
-- **The class names kept their `GSBotDemo*` prefix, the cvars their `bot_record*` names, the SQL table `dot_bot_demos` and its migration component `gs-bot:demos`.** Renaming any of them orphans saved data or breaks games; a rename is an API-level bump (`OLDEST`) with every game edited in the same pass.
+- **The class names kept their `GSBotDemo*` prefix, the cvars their `bot_record*` names, the SQL table `gs_bot_demos` and its migration component `gs-bot:demos`.** Renaming any of them orphans saved data or breaks games; a rename is an API-level bump (`OLDEST`) with every game edited in the same pass.
 - Nothing identifying is kept: no names, no ids, a day and nothing finer. The suite checks it.
 - Consumers (GameSpice Bot) type a store, schema or episode as `Variant`/`Object`, never by these class names, so they compile without this addon.
-- Link `addons/dot_core` (and optionally `dot_sql`, `godot-sqlite`) from their repos; both gitignored.
+- Link `addons/gs_core` (and optionally `gs_sql`, `godot-sqlite`) from their repos; both gitignored.
 
 ## Running and testing
 

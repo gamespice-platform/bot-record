@@ -13,24 +13,24 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	var url := (OS.get_environment("GS_SQL_URL") if OS.has_environment("GS_SQL_URL") else OS.get_environment("DOT_SQL_URL"))
-	var name := (OS.get_environment("GS_SQL_DIALECT") if OS.has_environment("GS_SQL_DIALECT") else OS.get_environment("DOT_SQL_DIALECT"))
-	var token_file := (OS.get_environment("GS_SQL_TOKEN_FILE") if OS.has_environment("GS_SQL_TOKEN_FILE") else OS.get_environment("DOT_SQL_TOKEN_FILE"))
-	var direct := (OS.get_environment("GS_SQL_SQLITE_PATH") if OS.has_environment("GS_SQL_SQLITE_PATH") else OS.get_environment("DOT_SQL_SQLITE_PATH"))
+	var url := (OS.get_environment("GS_SQL_URL") if OS.has_environment("GS_SQL_URL") else OS.get_environment("GS_SQL_URL"))
+	var name := (OS.get_environment("GS_SQL_DIALECT") if OS.has_environment("GS_SQL_DIALECT") else OS.get_environment("GS_SQL_DIALECT"))
+	var token_file := (OS.get_environment("GS_SQL_TOKEN_FILE") if OS.has_environment("GS_SQL_TOKEN_FILE") else OS.get_environment("GS_SQL_TOKEN_FILE"))
+	var direct := (OS.get_environment("GS_SQL_SQLITE_PATH") if OS.has_environment("GS_SQL_SQLITE_PATH") else OS.get_environment("GS_SQL_SQLITE_PATH"))
 	if direct != "":
 		name = "sqlite (extension)"
 	elif url == "" or name == "" or token_file == "":
 		print("set GS_SQL_SQLITE_PATH, or GS_SQL_URL, GS_SQL_DIALECT and GS_SQL_TOKEN_FILE; see tools/test_live.sh")
 		get_tree().quit(2)
 		return
-	print("dot-bot-record live: %s" % name)
+	print("gs-bot-record live: %s" % name)
 
 	var db := {"driver": "sqlite", "path": direct} if direct != "" else {
 		"driver": "gateway", "dialect": name, "url": url,
 		"token": FileAccess.get_file_as_string(token_file).strip_edges(),
 	}
 	# GameSpice SQL by path, as the store does, so this file parses without it.
-	var sql_script: Script = load("res://addons/dot_sql/core/dot_sql.gd")
+	var sql_script: Script = load("res://addons/gs_sql/core/gs_sql.gd")
 	var make := func() -> GSBotDemoStore:
 		var made: GSResult = sql_script.call("from_config", db, self)
 		var s := GSBotDemoStoreSql.new(made.value)
@@ -40,7 +40,7 @@ func _ready() -> void:
 	# A previous failed run may have left the table; start from nothing so the migration runs.
 	var first: GSBotDemoStore = await make.call()
 	await first.driver.execute("DROP TABLE IF EXISTS %s" % GSBotDemoStoreSql.TABLE)
-	await first.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
+	await first.driver.execute("DELETE FROM gs_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
 
 	var store: GSBotDemoStore = await make.call()
 	var opened: GSResult = await store.open()
@@ -50,7 +50,7 @@ func _ready() -> void:
 	_check(store.driver != null, "the driver is built from the settings")
 	await Contract.run(store, make, "live", _check)
 	await store.driver.execute("DROP TABLE IF EXISTS %s" % GSBotDemoStoreSql.TABLE)
-	await store.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
+	await store.driver.execute("DELETE FROM gs_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
 	await store.close()
 
 	print("")

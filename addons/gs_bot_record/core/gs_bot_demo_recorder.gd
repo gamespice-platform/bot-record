@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Server only; subjects map to an in-memory counter, never a name or id.
 
-const CHANNEL := "dot.bot.demo"
+const CHANNEL := "gs.bot.demo"
 
 ## The queue's size above which the oldest episode is dropped.
 const QUEUE_MAX_BYTES := 4 * 1024 * 1024
