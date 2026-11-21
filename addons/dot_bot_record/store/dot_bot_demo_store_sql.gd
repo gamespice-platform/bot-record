@@ -1,5 +1,5 @@
-class_name DotBotDemoStoreSql
-extends DotBotDemoStore
+class_name GSBotDemoStoreSql
+extends GSBotDemoStore
 
 ## Episodes in a database through a GameSpice SQL driver, held untyped so GameSpice Bot Record does not need GameSpice SQL.
 ## The column is [code]edge_key[/code] because [code]key[/code] is reserved in one dialect.
@@ -43,48 +43,48 @@ static func migration_steps() -> Array:
 	}]]
 
 
-func open() -> DotResult:
+func open() -> GSResult:
 	if driver == null:
-		return DotResult.fail(DotError.CODE_STATE, "No SQL driver.")
-	var available: DotResult = driver.is_available()
+		return GSResult.fail(GSError.CODE_STATE, "No SQL driver.")
+	var available: GSResult = driver.is_available()
 	if not available.ok:
 		return available
-	var opened: DotResult = await driver.open()
+	var opened: GSResult = await driver.open()
 	if not opened.ok:
 		return opened
-	var migrated: DotResult = await driver.migrate(COMPONENT, migration_steps())
+	var migrated: GSResult = await driver.migrate(COMPONENT, migration_steps())
 	if not migrated.ok:
 		return migrated.wrap("Could not prepare the demonstration table.")
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func close() -> DotResult:
+func close() -> GSResult:
 	if driver != null:
 		driver.close()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func append(batch: Array) -> DotResult:
+func append(batch: Array) -> GSResult:
 	var statements: Array = []
 	var sql := "INSERT INTO %s (%s) VALUES (%s)" % [TABLE, COLUMNS, ", ".join(_marks(14))]
 	for item: Variant in batch:
-		var e := item as DotBotDemoEpisode
+		var e := item as GSBotDemoEpisode
 		if e == null:
-			return DotResult.fail(DotError.CODE_INVALID, "A store holds DotBotDemoEpisode, not %s." % type_string(typeof(item)))
+			return GSResult.fail(GSError.CODE_INVALID, "A store holds GSBotDemoEpisode, not %s." % type_string(typeof(item)))
 		e.id = _new_id()
 		statements.append([sql, [
 			e.id, e.map_id, e.map_version, e.schema_id, e.kind, e.key, e.day, e.rate, e.frame_size,
 			e.outcome, 1 if e.verified else 0, e.score, JSON.stringify(e.start),
 			Marshalls.raw_to_base64(e.ticks.to_byte_array()),
 		]])
-	var res: DotResult = await driver.batch(statements)
+	var res: GSResult = await driver.batch(statements)
 	if not res.ok:
 		return res.wrap("Could not store %d episodes." % batch.size())
-	return DotResult.success(batch.size())
+	return GSResult.success(batch.size())
 
 
-func counts(map_id: String, map_version: String, kind: String) -> DotResult:
-	var res: DotResult = await driver.query(
+func counts(map_id: String, map_version: String, kind: String) -> GSResult:
+	var res: GSResult = await driver.query(
 		"SELECT edge_key, verified, COUNT(*) AS n FROM %s WHERE map_id = ? AND map_version = ? AND kind = ? GROUP BY edge_key, verified" % TABLE,
 		[map_id, map_version, kind])
 	if not res.ok:
@@ -93,60 +93,60 @@ func counts(map_id: String, map_version: String, kind: String) -> DotResult:
 	for row: Dictionary in res.value:
 		var key := str(row["edge_key"])
 		out[key] = int(out.get(key, 0)) + (int(row["n"]) if int(row["verified"]) != 0 else 0)
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
-func load(map_id: String, map_version: String, kind: String, key: String, limit: int) -> DotResult:
+func load(map_id: String, map_version: String, kind: String, key: String, limit: int) -> GSResult:
 	var sql := "SELECT %s FROM %s WHERE map_id = ? AND map_version = ? AND kind = ? AND edge_key = ? ORDER BY score DESC, id" % [COLUMNS, TABLE]
 	var params: Array = [map_id, map_version, kind, key]
 	if limit > 0:
 		sql += " LIMIT ?"
 		params.append(limit)
-	var res: DotResult = await driver.query(sql, params)
+	var res: GSResult = await driver.query(sql, params)
 	if not res.ok:
 		return res
 	var out: Array = []
 	for row: Dictionary in res.value:
 		out.append(_episode(row))
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
-func mark(ids: Array, verified: bool, score: float) -> DotResult:
+func mark(ids: Array, verified: bool, score: float) -> GSResult:
 	var changed := 0
 	for i in range(0, ids.size(), 50):
 		var part: Array = ids.slice(i, i + 50)
 		var params: Array = [1 if verified else 0, score]
 		params.append_array(part)
-		var res: DotResult = await driver.execute(
+		var res: GSResult = await driver.execute(
 			"UPDATE %s SET verified = ?, score = ? WHERE id IN (%s)" % [TABLE, ", ".join(_marks(part.size()))], params)
 		if not res.ok:
 			return res
 		changed += part.size()
-	return DotResult.success(changed)
+	return GSResult.success(changed)
 
 
-func remove(ids: Array) -> DotResult:
+func remove(ids: Array) -> GSResult:
 	var gone := 0
 	for i in range(0, ids.size(), 50):
 		var part: Array = ids.slice(i, i + 50)
-		var res: DotResult = await driver.execute(
+		var res: GSResult = await driver.execute(
 			"DELETE FROM %s WHERE id IN (%s)" % [TABLE, ", ".join(_marks(part.size()))], part)
 		if not res.ok:
 			return res
 		gone += part.size()
-	return DotResult.success(gone)
+	return GSResult.success(gone)
 
 
-func prune(map_id: String, keep_version: String) -> DotResult:
-	var seen: DotResult = await driver.query_value(
+func prune(map_id: String, keep_version: String) -> GSResult:
+	var seen: GSResult = await driver.query_value(
 		"SELECT COUNT(*) FROM %s WHERE map_id = ? AND map_version <> ?" % TABLE, [map_id, keep_version], 0)
 	if not seen.ok:
 		return seen
-	var res: DotResult = await driver.execute(
+	var res: GSResult = await driver.execute(
 		"DELETE FROM %s WHERE map_id = ? AND map_version <> ?" % TABLE, [map_id, keep_version])
 	if not res.ok:
 		return res
-	return DotResult.success(int(seen.value))
+	return GSResult.success(int(seen.value))
 
 
 func describe_lines() -> PackedStringArray:
@@ -167,8 +167,8 @@ static func _marks(n: int) -> Array:
 	return out
 
 
-static func _episode(row: Dictionary) -> DotBotDemoEpisode:
-	var e := DotBotDemoEpisode.new()
+static func _episode(row: Dictionary) -> GSBotDemoEpisode:
+	var e := GSBotDemoEpisode.new()
 	e.id = int(row["id"])
 	e.map_id = str(row["map_id"])
 	e.map_version = str(row["map_version"])

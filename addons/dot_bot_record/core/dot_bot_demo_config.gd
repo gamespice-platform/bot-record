@@ -1,5 +1,5 @@
-class_name DotBotDemoConfig
-extends DotConfig
+class_name GSBotDemoConfig
+extends GSConfig
 
 ## The recorder's settings: exported defaults < JSON file < environment < command line, and the bot_record* cvars.
 ##
@@ -54,18 +54,18 @@ func sensitive_keys() -> PackedStringArray:
 	return PackedStringArray(["token"])
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if rate <= 0.0 or rate > 1000.0:
-		return DotResult.fail(DotError.CODE_INVALID, "bot_record_rate is %s; it must be above 0 and at most 1000." % rate)
+		return GSResult.fail(GSError.CODE_INVALID, "bot_record_rate is %s; it must be above 0 and at most 1000." % rate)
 	if rate_max < 0.0 or (rate_max > 0.0 and rate_max < rate):
-		return DotResult.fail(DotError.CODE_INVALID, "bot_record_rate_max is %s; it is 0 (the tick rate) or at least bot_record_rate." % rate_max)
+		return GSResult.fail(GSError.CODE_INVALID, "bot_record_rate_max is %s; it is 0 (the tick rate) or at least bot_record_rate." % rate_max)
 	if target < 1 or cap < 1:
-		return DotResult.fail(DotError.CODE_INVALID, "bot_record_target and bot_record_cap must be 1 or more.")
+		return GSResult.fail(GSError.CODE_INVALID, "bot_record_target and bot_record_cap must be 1 or more.")
 	if not STORES.has(store):
-		return DotResult.fail(DotError.CODE_INVALID, "bot_record_store is %s, not '%s'." % [", ".join(STORES), store])
+		return GSResult.fail(GSError.CODE_INVALID, "bot_record_store is %s, not '%s'." % [", ".join(STORES), store])
 	if flush <= 0.0:
-		return DotResult.fail(DotError.CODE_INVALID, "bot_record_flush must be above 0 seconds.")
-	return DotResult.success(self)
+		return GSResult.fail(GSError.CODE_INVALID, "bot_record_flush must be above 0 seconds.")
+	return GSResult.success(self)
 
 
 ## True when [param kind] is one the server records.
@@ -123,23 +123,23 @@ func _validator(key: String) -> Callable:
 	return _valid_number
 
 
-static func _valid_bool(value: String) -> DotResult:
+static func _valid_bool(value: String) -> GSResult:
 	var t := value.strip_edges().to_lower()
 	if t in ["1", "true", "on"]:
-		return DotResult.success("1")
+		return GSResult.success("1")
 	if t in ["0", "false", "off"]:
-		return DotResult.success("0")
-	return DotResult.fail(DotError.CODE_INVALID, "bot_record is 0 or 1.")
+		return GSResult.success("0")
+	return GSResult.fail(GSError.CODE_INVALID, "bot_record is 0 or 1.")
 
 
-static func _valid_number(value: String) -> DotResult:
+static func _valid_number(value: String) -> GSResult:
 	if not value.strip_edges().is_valid_float() or value.to_float() < 0.0:
-		return DotResult.fail(DotError.CODE_INVALID, "'%s' is not a number of 0 or more." % value)
-	return DotResult.success(value.strip_edges())
+		return GSResult.fail(GSError.CODE_INVALID, "'%s' is not a number of 0 or more." % value)
+	return GSResult.success(value.strip_edges())
 
 
-static func _valid_text(value: String) -> DotResult:
-	return DotResult.success(value.strip_edges())
+static func _valid_text(value: String) -> GSResult:
+	return GSResult.success(value.strip_edges())
 
 
 static func _text(v: Variant) -> String:
@@ -166,4 +166,4 @@ func _apply_text(key: String, text: String) -> void:
 	var valid := validate()
 	if not valid.ok:
 		set(key, old)
-		DotLog.warn(DotBotDemoRecorder.CHANNEL, "Refused %s: %s" % [key, valid.error.message])
+		GSLog.warn(GSBotDemoRecorder.CHANNEL, "Refused %s: %s" % [key, valid.error.message])

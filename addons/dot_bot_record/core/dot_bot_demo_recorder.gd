@@ -1,4 +1,4 @@
-class_name DotBotDemoRecorder
+class_name GSBotDemoRecorder
 extends RefCounted
 
 ## Records what players do on the server as episodes in a schema the host declares, for bots to learn from.
@@ -28,8 +28,8 @@ var include_fn: Callable = Callable()
 ## The most [method process] spends writing in one call.
 var write_budget_usec: int = 2000
 
-var config: DotBotDemoConfig
-var store: DotBotDemoStore
+var config: GSBotDemoConfig
+var store: GSBotDemoStore
 
 var recorded: int = 0
 var dropped: int = 0
@@ -56,7 +56,7 @@ var _ordinal: int = 0
 ## One subject's open episode.
 class Active:
 	extends RefCounted
-	var schema: DotBotDemoSchema
+	var schema: GSBotDemoSchema
 	var key: String = ""
 	var start: Dictionary = {}
 	var rate: float = 0.0
@@ -69,23 +69,23 @@ class Active:
 	var frames: PackedFloat32Array = PackedFloat32Array()
 
 
-func _init(p_config: DotBotDemoConfig = null, p_store: DotBotDemoStore = null) -> void:
-	config = p_config if p_config != null else DotBotDemoConfig.new()
+func _init(p_config: GSBotDemoConfig = null, p_store: GSBotDemoStore = null) -> void:
+	config = p_config if p_config != null else GSBotDemoConfig.new()
 	store = p_store
 
 
 ## Declares a kind of episode; the recorder will refuse to begin one that is not.
-func register(schema: DotBotDemoSchema) -> DotResult:
+func register(schema: GSBotDemoSchema) -> GSResult:
 	var valid := schema.validate()
 	if not valid.ok:
 		return valid.wrap("Cannot record that schema.")
 	_schemas[schema.kind] = schema
 	var mask := PackedByteArray()
 	for row: Array in schema.action:
-		for _i in int(row[DotBotDemoSchema.COL_SIZE]):
-			mask.append(1 if bool(row[DotBotDemoSchema.COL_DISCRETE]) else 0)
+		for _i in int(row[GSBotDemoSchema.COL_SIZE]):
+			mask.append(1 if bool(row[GSBotDemoSchema.COL_DISCRETE]) else 0)
 	_masks[schema.kind] = mask
-	return DotResult.success(schema)
+	return GSResult.success(schema)
 
 
 ## A new map (or content version): forgets the tallies. Follow with [method load_counts].
@@ -98,15 +98,15 @@ func set_map(p_map_id: String, p_map_version: String) -> void:
 
 
 ## Reads each kind's verified counts from the store, once per map load.
-func load_counts() -> DotResult:
+func load_counts() -> GSResult:
 	if store == null:
-		return DotResult.fail(DotError.CODE_STATE, "No store to read counts from.")
+		return GSResult.fail(GSError.CODE_STATE, "No store to read counts from.")
 	for kind: String in _schemas:
-		var res: DotResult = await store.counts(map_id, map_version, kind)
+		var res: GSResult = await store.counts(map_id, map_version, kind)
 		if not res.ok:
 			return res.wrap("Cannot read the %s counts." % kind)
 		_counts[kind] = (res.value as Dictionary).duplicate()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## A consumer verified [param n] more episodes of a key, which lowers its rate.
@@ -134,23 +134,23 @@ func stride_for(hz: float) -> int:
 
 
 ## Starts an episode for [param subject]; fails when recording is off, the kind is unknown or filtered, or the subject refused.
-func begin(subject: Variant, kind: String, key: String = "", start: Dictionary = {}) -> DotResult:
+func begin(subject: Variant, kind: String, key: String = "", start: Dictionary = {}) -> GSResult:
 	if not is_server:
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "Only the server records.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "Only the server records.")
 	if not config.record:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Recording is off (bot_record 0).")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Recording is off (bot_record 0).")
 	if store == null:
-		return DotResult.fail(DotError.CODE_STATE, "No store to record into.")
+		return GSResult.fail(GSError.CODE_STATE, "No store to record into.")
 	if not _schemas.has(kind):
-		return DotResult.fail(DotError.CODE_INVALID, "Kind '%s' has no registered schema." % kind)
+		return GSResult.fail(GSError.CODE_INVALID, "Kind '%s' has no registered schema." % kind)
 	if not config.records_kind(kind):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Kind '%s' is not in bot_record_kinds." % kind)
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Kind '%s' is not in bot_record_kinds." % kind)
 	if include_fn.is_valid() and not bool(include_fn.call(subject)):
 		refused += 1
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "That subject is not recorded.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "That subject is not recorded.")
 	if key != "" and _is_full(kind, key):
 		capped += 1
-		return DotResult.fail(DotError.CODE_QUOTA, "Key '%s' already has %d episodes." % [key, config.cap])
+		return GSResult.fail(GSError.CODE_QUOTA, "Key '%s' already has %d episodes." % [key, config.cap])
 	var a := Active.new()
 	a.schema = _schemas[kind]
 	a.key = key
@@ -163,7 +163,7 @@ func begin(subject: Variant, kind: String, key: String = "", start: Dictionary =
 			a.modes.append({})
 	_ordinal += 1
 	_active[subject] = a
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Offers one tick; true when it was kept (every [method stride_for]th). The action kept is the one held over the gap.
@@ -194,20 +194,20 @@ func sample(subject: Variant, observation: PackedFloat32Array, action: PackedFlo
 
 
 ## Finishes the episode and queues it, unless the outcome is not one the kind keeps or its key is full.
-func end(subject: Variant, outcome: String, key: String = "") -> DotResult:
+func end(subject: Variant, outcome: String, key: String = "") -> GSResult:
 	var a: Active = _active.get(subject)
 	if a == null:
-		return DotResult.fail(DotError.CODE_STATE, "That subject has no episode open.")
+		return GSResult.fail(GSError.CODE_STATE, "That subject has no episode open.")
 	_active.erase(subject)
 	if a.gap > 0:
 		_emit(a)
 	var final_key := key if key != "" else a.key
 	if a.frames.is_empty() or not a.schema.keeps(outcome):
-		return DotResult.fail(DotError.CODE_CANCELLED, "Outcome '%s' is not kept." % outcome)
+		return GSResult.fail(GSError.CODE_CANCELLED, "Outcome '%s' is not kept." % outcome)
 	if _is_full(a.schema.kind, final_key):
 		capped += 1
-		return DotResult.fail(DotError.CODE_QUOTA, "Key '%s' already has %d episodes." % [final_key, config.cap])
-	var e := DotBotDemoEpisode.new()
+		return GSResult.fail(GSError.CODE_QUOTA, "Key '%s' already has %d episodes." % [final_key, config.cap])
+	var e := GSBotDemoEpisode.new()
 	e.map_id = map_id
 	e.map_version = map_version
 	e.schema_id = a.schema.schema_id()
@@ -224,7 +224,7 @@ func end(subject: Variant, outcome: String, key: String = "") -> DotResult:
 	_kept[e.kind] = per
 	_enqueue(e)
 	recorded += 1
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Drops the subject's open episode (a teleport, a disconnect, a round end).
@@ -268,14 +268,14 @@ func process(delta: float) -> void:
 
 
 ## Writes everything queued now, whatever the budget; for shutdown.
-func flush_all() -> DotResult:
+func flush_all() -> GSResult:
 	_batch.append_array(_queue)
 	_queue = []
 	_queue_bytes = 0
 	if _busy:
-		return DotResult.fail(DotError.CODE_STATE, "A write is already in flight.")
+		return GSResult.fail(GSError.CODE_STATE, "A write is already in flight.")
 	await _write_some(0x7fffffff)
-	return DotResult.success(written)
+	return GSResult.success(written)
 
 
 func describe() -> String:
@@ -288,7 +288,7 @@ func describe_lines() -> PackedStringArray:
 	out.append("recording: %s%s" % ["ON" if is_on() else "off", "" if is_server else " (not a server)"])
 	out.append("map: %s @ %s" % [map_id, map_version])
 	for kind: String in _schemas:
-		out.append("kind %s: %s, %d keys counted" % [kind, (_schemas[kind] as DotBotDemoSchema).describe(), (_counts.get(kind, {}) as Dictionary).size()])
+		out.append("kind %s: %s, %d keys counted" % [kind, (_schemas[kind] as GSBotDemoSchema).describe(), (_counts.get(kind, {}) as Dictionary).size()])
 		for key: String in (_counts.get(kind, {}) as Dictionary):
 			out.append("  %s: %d verified, %.1f Hz" % [key if key != "" else "(none)", int(_counts[kind][key]), rate_for(kind, key)])
 	out.append("open %d, queued %d (%d bytes), written %d, recorded %d" % [_active.size(), queued(), _queue_bytes, written, recorded])
@@ -322,14 +322,14 @@ func _emit(a: Active) -> void:
 	a.gap = 0
 
 
-func _enqueue(e: DotBotDemoEpisode) -> void:
+func _enqueue(e: GSBotDemoEpisode) -> void:
 	_queue.append(e)
 	_queue_bytes += e.byte_size()
 	while _queue_bytes > QUEUE_MAX_BYTES and _queue.size() > 1:
-		var old: DotBotDemoEpisode = _queue.pop_front()
+		var old: GSBotDemoEpisode = _queue.pop_front()
 		_queue_bytes -= old.byte_size()
 		dropped += 1
-		DotLog.warn(CHANNEL, "Queue is over its cap; dropped the oldest episode.", {"dropped": dropped})
+		GSLog.warn(CHANNEL, "Queue is over its cap; dropped the oldest episode.", {"dropped": dropped})
 
 
 func _write_some(budget_usec: int) -> void:
@@ -337,14 +337,14 @@ func _write_some(budget_usec: int) -> void:
 	var t0 := Time.get_ticks_usec()
 	while not _batch.is_empty():
 		var chunk: Array = _batch.slice(0, CHUNK)
-		var res: DotResult = await store.append(chunk)
+		var res: GSResult = await store.append(chunk)
 		if not res.ok:
 			write_errors += 1
-			DotLog.warn(CHANNEL, "Could not write %d episodes: %s" % [chunk.size(), res.error.message])
+			GSLog.warn(CHANNEL, "Could not write %d episodes: %s" % [chunk.size(), res.error.message])
 			_queue = _batch + _queue
 			_batch = []
 			_queue_bytes = 0
-			for e: DotBotDemoEpisode in _queue:
+			for e: GSBotDemoEpisode in _queue:
 				_queue_bytes += e.byte_size()
 			break
 		_batch = _batch.slice(chunk.size())

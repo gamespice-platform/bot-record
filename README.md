@@ -11,7 +11,7 @@ Nothing identifying is kept. Recording is on by default and is switched off with
 
 ## Use
 
-Register a `DotBotDemoSchema` for each kind of episode. Then call `begin`, `sample` and `end` on a `DotBotDemoRecorder`.
+Register a `GSBotDemoSchema` for each kind of episode. Then call `begin`, `sample` and `end` on a `GSBotDemoRecorder`.
 
 The recorder samples fast while a key has few recordings and falls to a base rate once it has enough. Finished episodes are queued and written in time-budgeted batches to a store.
 

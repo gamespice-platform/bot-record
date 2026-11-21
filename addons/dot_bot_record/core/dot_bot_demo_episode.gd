@@ -1,4 +1,4 @@
-class_name DotBotDemoEpisode
+class_name GSBotDemoEpisode
 extends RefCounted
 
 ## One recorded stretch: what it is about, where a replay starts and the kept samples.
@@ -50,8 +50,8 @@ func to_dictionary() -> Dictionary:
 	}
 
 
-static func from_dictionary(d: Dictionary) -> DotBotDemoEpisode:
-	var e := DotBotDemoEpisode.new()
+static func from_dictionary(d: Dictionary) -> GSBotDemoEpisode:
+	var e := GSBotDemoEpisode.new()
 	e.id = int(d.get("id", 0))
 	e.map_id = String(d.get("map_id", ""))
 	e.map_version = String(d.get("map_version", ""))

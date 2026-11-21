@@ -22,7 +22,7 @@ var _entered := 0
 var _completed := 0
 
 
-## A cvar shaped like GameSpice Server's DotConVar.
+## A cvar shaped like GameSpice Server's GSConVar.
 class FakeCvar:
 	extends RefCounted
 	signal changed(old_value: String, new_value: String)
@@ -44,16 +44,16 @@ class FakeCvar:
 	func get_string() -> String:
 		return value
 
-	func set_value(text: String) -> DotResult:
+	func set_value(text: String) -> GSResult:
 		var t := text.strip_edges()
 		if t.is_valid_float() and (lo > -INF or hi < INF):
 			t = str(clampf(t.to_float(), lo, hi))
 		if validator.is_valid():
-			var r: DotResult = validator.call(t)
+			var r: GSResult = validator.call(t)
 			if not r.ok:
 				return r
 		force_set(t)
-		return DotResult.success(t)
+		return GSResult.success(t)
 
 	func force_set(text: String) -> void:
 		var old := value
@@ -63,7 +63,7 @@ class FakeCvar:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -98,10 +98,10 @@ func _run() -> void:
 
 
 class SlowStore:
-	extends DotBotDemoStoreMemory
+	extends GSBotDemoStoreMemory
 	var cost_usec := 3000
 
-	func append(batch: Array) -> DotResult:
+	func append(batch: Array) -> GSResult:
 		var t := Time.get_ticks_usec()
 		while Time.get_ticks_usec() - t < cost_usec:
 			pass
@@ -110,22 +110,22 @@ class SlowStore:
 
 ## A store that is down.
 class DownStore:
-	extends DotBotDemoStore
+	extends GSBotDemoStore
 
-	func append(_batch: Array) -> DotResult:
-		return DotResult.fail(DotError.CODE_IO, "down")
+	func append(_batch: Array) -> GSResult:
+		return GSResult.fail(GSError.CODE_IO, "down")
 
 
-func _demo_schema() -> DotBotDemoSchema:
-	var sc := DotBotDemoSchema.make("ride", 1)
+func _demo_schema() -> GSBotDemoSchema:
+	var sc := GSBotDemoSchema.make("ride", 1)
 	sc.add_observation("pos", 3, 100.0).add_observation("vel", 3, 20.0)
 	sc.add_action("move", 2).add_action("buttons", 1, 1.0, true)
 	return sc
 
 
 ## A server recorder with one registered schema, in memory, ticking at 64 Hz.
-func _demo_recorder(store: DotBotDemoStore = null) -> DotBotDemoRecorder:
-	var rec := DotBotDemoRecorder.new(DotBotDemoConfig.new(), store if store != null else DotBotDemoStoreMemory.new())
+func _demo_recorder(store: GSBotDemoStore = null) -> GSBotDemoRecorder:
+	var rec := GSBotDemoRecorder.new(GSBotDemoConfig.new(), store if store != null else GSBotDemoStoreMemory.new())
 	rec.is_server = true
 	rec.tick_rate = 64.0
 	rec.set_map("surf_toy", "v1")
@@ -134,7 +134,7 @@ func _demo_recorder(store: DotBotDemoStore = null) -> DotBotDemoRecorder:
 
 
 ## Feeds [param n] ticks of a toy ride to [param subject].
-func _demo_ride(rec: DotBotDemoRecorder, subject: Variant, n: int, buttons: float = 0.0) -> int:
+func _demo_ride(rec: GSBotDemoRecorder, subject: Variant, n: int, buttons: float = 0.0) -> int:
 	var kept := 0
 	for t in n:
 		var obs := PackedFloat32Array([t, 0, 0, 1, 0, 0])
@@ -148,15 +148,15 @@ func _test_demo_schema() -> void:
 	_section("demonstration schema: validated, hashed, sized")
 	var sc := _demo_schema()
 	_check(sc.validate().ok and sc.frame_size() == 9 and sc.observation_size() == 6 and sc.action_size() == 3, "a good schema validates and sizes its frame", str(sc.frame_size()))
-	_check(not DotBotDemoSchema.make("", 1).add_observation("a").add_action("b").validate().ok, "an empty kind is refused")
-	_check(not DotBotDemoSchema.make("x", 1).add_observation("a").validate().ok, "a schema with no action is refused")
-	_check(not DotBotDemoSchema.make("x", 1).add_observation("a").add_action("a").validate().ok, "a repeated field name is refused")
-	_check(not DotBotDemoSchema.make("x", 1).add_observation("a", 0).add_action("b").validate().ok, "a field of size 0 is refused")
-	_check(not DotBotDemoSchema.make("x", 1).add_observation("a", 1, 0.0).add_action("b").validate().ok, "a scale of 0 is refused")
+	_check(not GSBotDemoSchema.make("", 1).add_observation("a").add_action("b").validate().ok, "an empty kind is refused")
+	_check(not GSBotDemoSchema.make("x", 1).add_observation("a").validate().ok, "a schema with no action is refused")
+	_check(not GSBotDemoSchema.make("x", 1).add_observation("a").add_action("a").validate().ok, "a repeated field name is refused")
+	_check(not GSBotDemoSchema.make("x", 1).add_observation("a", 0).add_action("b").validate().ok, "a field of size 0 is refused")
+	_check(not GSBotDemoSchema.make("x", 1).add_observation("a", 1, 0.0).add_action("b").validate().ok, "a scale of 0 is refused")
 	var other := _demo_schema().add_action("extra")
 	_check(sc.schema_id() == _demo_schema().schema_id() and sc.schema_id() != other.schema_id(), "the id is a hash of the fields")
 	var rec := _demo_recorder()
-	_check(rec.register(DotBotDemoSchema.make("bad", 1)).code() == DotError.CODE_INVALID, "the recorder refuses to register a bad schema")
+	_check(rec.register(GSBotDemoSchema.make("bad", 1)).code() == GSError.CODE_INVALID, "the recorder refuses to register a bad schema")
 	_done()
 
 
@@ -181,7 +181,7 @@ func _test_demo_rate() -> void:
 		mono = mono and r <= last
 		last = r
 	_check(mono, "the rate never rises as the count does")
-	var cfg := DotBotDemoConfig.new()
+	var cfg := GSBotDemoConfig.new()
 	_check(cfg.rate == 16.0 and cfg.target == 40 and cfg.cap == 200 and cfg.record, "defaults: 16 Hz, 40 per edge, 200 kept, ON")
 	cfg.rate_max = 8.0
 	_check(not cfg.validate().ok, "a top rate under the base rate is refused")
@@ -190,7 +190,7 @@ func _test_demo_rate() -> void:
 
 func _test_demo_record() -> void:
 	_section("demonstration recording: a fake host records, a bot is refused")
-	var store := DotBotDemoStoreMemory.new()
+	var store := GSBotDemoStoreMemory.new()
 	var rec := _demo_recorder(store)
 	rec.include_fn = FakeHost._is_human
 	_check(rec.begin(7, "ride", "17>9", {"pos": [1, 2, 3]}).ok, "a human's ride begins")
@@ -198,9 +198,9 @@ func _test_demo_record() -> void:
 	_check(kept == 64, "the first ride on an edge keeps every tick", str(kept))
 	var res := rec.end(7, "landed", "17>9")
 	_check(res.ok and rec.queued() == 1 and rec.recorded == 1, "ending it queues one episode")
-	var flushed: DotResult = await rec.flush_all()
+	var flushed: GSResult = await rec.flush_all()
 	_check(flushed.ok and store.episodes.size() == 1, "and a flush stores it", str(flushed))
-	var e := store.episodes[0] as DotBotDemoEpisode
+	var e := store.episodes[0] as GSBotDemoEpisode
 	_check(e.kind == "ride" and e.key == "17>9" and e.outcome == "landed" and e.map_id == "surf_toy" and e.map_version == "v1" and e.day.length() == 10,
 		"it names the kind, key, outcome, map, version and a date")
 	_check(e.sample_count() == 64 and e.ticks.size() == 64 * 9 and is_equal_approx(e.rate, 64.0), "64 samples of nine floats at 64 Hz", str(e.ticks.size()))
@@ -213,16 +213,16 @@ func _test_demo_record() -> void:
 	kept = _demo_ride(rec, 8, 64, 4.0)
 	_check(kept == 16, "at the base rate every 4th tick is kept", str(kept))
 	var _end := rec.end(8, "landed")
-	var _fl: DotResult = await rec.flush_all()
-	var slow := store.episodes[1] as DotBotDemoEpisode
+	var _fl: GSResult = await rec.flush_all()
+	var slow := store.episodes[1] as GSBotDemoEpisode
 	_check(is_equal_approx(slow.rate, 16.0) and slow.sample_count() == 16, "the episode says its rate")
 	_check(is_equal_approx(slow.ticks[6], 1.0) and is_equal_approx(slow.ticks[7], 0.5) and is_equal_approx(slow.ticks[8], 4.0),
 		"an analogue action is the mean over the gap and a button the most frequent value", str([slow.ticks[7], slow.ticks[8]]))
 
 	# Refusals.
 	var bot := rec.begin(-1, "ride", "17>9")
-	_check(not bot.ok and bot.code() == DotError.CODE_FORBIDDEN and rec.refused == 1 and not rec.is_recording(-1), "a bot is refused by include_fn")
-	_check(rec.begin(9, "dance", "").code() == DotError.CODE_INVALID, "a kind with no schema is refused")
+	_check(not bot.ok and bot.code() == GSError.CODE_FORBIDDEN and rec.refused == 1 and not rec.is_recording(-1), "a bot is refused by include_fn")
+	_check(rec.begin(9, "dance", "").code() == GSError.CODE_INVALID, "a kind with no schema is refused")
 	_check(not rec.sample(99, PackedFloat32Array([0, 0, 0, 0, 0, 0]), PackedFloat32Array([0, 0, 0])), "a sample for nobody is ignored")
 	var _b := rec.begin(10, "ride", "")
 	_check(not rec.sample(10, PackedFloat32Array([0.0]), PackedFloat32Array([0, 0, 0])) and rec.bad_samples == 1, "a sample of the wrong size is counted, not stored")
@@ -230,10 +230,10 @@ func _test_demo_record() -> void:
 	_check(not rec.is_recording(10), "cancel drops the open episode")
 	var client := _demo_recorder()
 	client.is_server = false
-	_check(client.begin(1, "ride", "").code() == DotError.CODE_UNSUPPORTED, "a client never records")
+	_check(client.begin(1, "ride", "").code() == GSError.CODE_UNSUPPORTED, "a client never records")
 	var picky := _demo_recorder()
 	picky.config.kinds = "engage"
-	_check(picky.begin(1, "ride", "").code() == DotError.CODE_FORBIDDEN, "bot_record_kinds filters kinds")
+	_check(picky.begin(1, "ride", "").code() == GSError.CODE_FORBIDDEN, "bot_record_kinds filters kinds")
 	var sc2 := _demo_schema()
 	sc2.kind = "short"
 	sc2.keep_outcomes = PackedStringArray(["landed"])
@@ -257,12 +257,12 @@ func _test_demo_record() -> void:
 	# The queue: full, it drops the oldest.
 	var big := _demo_recorder()
 	for i in 6:
-		var huge := DotBotDemoEpisode.new()
+		var huge := GSBotDemoEpisode.new()
 		huge.key = "k%d" % i
 		huge.ticks.resize(260000)
 		big._enqueue(huge)
-	_check(big.dropped >= 1 and big.queued_bytes() <= DotBotDemoRecorder.QUEUE_MAX_BYTES, "a full queue drops the oldest episode", "%d dropped, %d bytes" % [big.dropped, big.queued_bytes()])
-	var oldest := big._queue[0] as DotBotDemoEpisode
+	_check(big.dropped >= 1 and big.queued_bytes() <= GSBotDemoRecorder.QUEUE_MAX_BYTES, "a full queue drops the oldest episode", "%d dropped, %d bytes" % [big.dropped, big.queued_bytes()])
+	var oldest := big._queue[0] as GSBotDemoEpisode
 	_check(oldest.key != "k0", "and it was the oldest that went", oldest.key)
 	_done()
 
@@ -314,8 +314,8 @@ func _test_demo_batching() -> void:
 func _test_demo_store_json() -> void:
 	_section("demonstration JSON store: round trip, versions, prune, corrupt file, the tick budget")
 	var dir := "user://dot_bot_test_%d" % randi()
-	var make := func() -> DotBotDemoStore: return DotBotDemoStoreJson.new(dir)
-	var store: DotBotDemoStoreJson = make.call()
+	var make := func() -> GSBotDemoStore: return GSBotDemoStoreJson.new(dir)
+	var store: GSBotDemoStoreJson = make.call()
 	var _o := await store.open()
 	await Contract.run(store, make, "json", _check)
 	var file := store.file_for("surf_toy", "v1", "ride")
@@ -325,19 +325,19 @@ func _test_demo_store_json() -> void:
 	var f := FileAccess.open(file, FileAccess.WRITE)
 	f.store_string("{\"format\": 1, \"episodes\": [ {oops")
 	f.close()
-	var broken := DotBotDemoStoreJson.new(dir)
-	var cnt: DotResult = await broken.counts("surf_toy", "v1", "ride")
+	var broken := GSBotDemoStoreJson.new(dir)
+	var cnt: GSResult = await broken.counts("surf_toy", "v1", "ride")
 	_check(cnt.ok and cnt.value.is_empty() and broken.recovered == 1 and FileAccess.file_exists(file + ".corrupt"), "json: a corrupt file is moved aside and counted as empty")
-	var fresh_put: DotResult = await broken.append([Contract.episode("surf_toy", "v1", "ride", "9>9", 0.3, true)])
-	var back: DotResult = await DotBotDemoStoreJson.new(dir).load("surf_toy", "v1", "ride", "9>9", 5)
+	var fresh_put: GSResult = await broken.append([Contract.episode("surf_toy", "v1", "ride", "9>9", 0.3, true)])
+	var back: GSResult = await GSBotDemoStoreJson.new(dir).load("surf_toy", "v1", "ride", "9>9", 5)
 	_check(fresh_put.ok and back.ok and back.value.size() == 1, "json: recording carries on after the recovery")
-	var newer := DotBotDemoStoreJson.new(dir + "/newer")
-	DotPaths.write_text(newer.file_for("m", "v", "ride"), "{\"format\": 99, \"episodes\": []}")
-	var refused: DotResult = await newer.counts("m", "v", "ride")
-	_check(not refused.ok and refused.error.code == DotError.CODE_VERSION and not FileAccess.file_exists(newer.file_for("m", "v", "ride") + ".corrupt"), "json: a file from a newer build is refused, not overwritten")
+	var newer := GSBotDemoStoreJson.new(dir + "/newer")
+	GSPaths.write_text(newer.file_for("m", "v", "ride"), "{\"format\": 99, \"episodes\": []}")
+	var refused: GSResult = await newer.counts("m", "v", "ride")
+	_check(not refused.ok and refused.error.code == GSError.CODE_VERSION and not FileAccess.file_exists(newer.file_for("m", "v", "ride") + ".corrupt"), "json: a file from a newer build is refused, not overwritten")
 
 	# The recorder writes through the store within its budget.
-	var timed := DotBotDemoStoreJson.new(dir + "/timed")
+	var timed := GSBotDemoStoreJson.new(dir + "/timed")
 	var rec := _demo_recorder(timed)
 	rec.config.flush = 0.2
 	rec.config.cap = 1000
@@ -353,17 +353,17 @@ func _test_demo_store_json() -> void:
 		worst = maxi(worst, Time.get_ticks_usec() - t0)
 		calls += 1
 		await get_tree().process_frame
-	var cnt_t: DotResult = await DotBotDemoStoreJson.new(dir + "/timed").counts("surf_toy", "v1", "ride")
+	var cnt_t: GSResult = await GSBotDemoStoreJson.new(dir + "/timed").counts("surf_toy", "v1", "ride")
 	_check(rec.written == 120 and cnt_t.ok and cnt_t.value.size() == 3, "json: the recorder's queue reaches the files", "%d written" % rec.written)
 	_check(worst < 12000 and calls > 4, "json: no tick spends more than the write budget and one chunk", "%d us over %d ticks" % [worst, calls])
 
-	var cfg := DotBotDemoConfig.new()
+	var cfg := GSBotDemoConfig.new()
 	cfg.path = dir + "/cfg"
-	var made: DotResult = DotBotDemoStore.from_config(cfg)
+	var made: GSResult = GSBotDemoStore.from_config(cfg)
 	cfg.store = "off"
-	var off: DotResult = DotBotDemoStore.from_config(cfg)
-	_check(made.ok and made.value is DotBotDemoStoreJson and (made.value as DotBotDemoStoreJson).path == cfg.path and off.ok and off.value == null, "from_config: json by default, null for off")
-	DotPaths.remove_tree(dir)
+	var off: GSResult = GSBotDemoStore.from_config(cfg)
+	_check(made.ok and made.value is GSBotDemoStoreJson and (made.value as GSBotDemoStoreJson).path == cfg.path and off.ok and off.value == null, "from_config: json by default, null for off")
+	GSPaths.remove_tree(dir)
 	_done()
 
 
@@ -376,19 +376,19 @@ func _test_demo_store_sql() -> void:
 		return
 	_sql_ran = true
 	var db := "user://dot_bot_test_%d.db" % randi()
-	var make := func() -> DotBotDemoStore:
-		var cfg := DotBotDemoConfig.new()
+	var make := func() -> GSBotDemoStore:
+		var cfg := GSBotDemoConfig.new()
 		cfg.store = "sqlite"
 		cfg.path = db
-		var res: DotResult = DotBotDemoStore.from_config(cfg, self)
-		var s: DotBotDemoStore = res.value
-		var _o: DotResult = await s.open()
+		var res: GSResult = GSBotDemoStore.from_config(cfg, self)
+		var s: GSBotDemoStore = res.value
+		var _o: GSResult = await s.open()
 		return s
-	var store: DotBotDemoStore = await make.call()
-	_check(store is DotBotDemoStoreSql, "from_config builds the SQL store from the config, dot-sql loaded by path")
-	var opened: DotResult = await store.open()
+	var store: GSBotDemoStore = await make.call()
+	_check(store is GSBotDemoStoreSql, "from_config builds the SQL store from the config, dot-sql loaded by path")
+	var opened: GSResult = await store.open()
 	_check(opened.ok, "the migration creates the table", str(opened.error.message if not opened.ok else ""))
-	var again: DotResult = await store.open()
+	var again: GSResult = await store.open()
 	_check(again.ok, "opening again does not migrate twice")
 	await Contract.run(store, make, "sql", _check)
 	await store.close()
@@ -402,7 +402,7 @@ func _test_demo_off_and_privacy() -> void:
 	_check(rec.begin("peer-4711-Alice", "ride", "17>9", {"x": 1}).ok, "it is on by default")
 	var _k := _demo_ride(rec, "peer-4711-Alice", 8)
 	var _e := rec.end("peer-4711-Alice", "landed")
-	var episode := rec._queue[0] as DotBotDemoEpisode
+	var episode := rec._queue[0] as GSBotDemoEpisode
 	var text := JSON.stringify(episode.to_dictionary())
 	_check(not text.contains("4711") and not text.contains("Alice") and not text.contains("peer"), "no name or id reaches the output")
 	var allowed := ["id", "map_id", "map_version", "schema_id", "kind", "key", "start", "rate", "frame_size", "ticks", "outcome", "day", "verified", "score"]
@@ -411,7 +411,7 @@ func _test_demo_off_and_privacy() -> void:
 		if not allowed.has(k):
 			extra += 1
 	_check(extra == 0 and episode.day.length() == 10, "only the declared fields, with a date and nothing finer", str(extra))
-	var back := DotBotDemoEpisode.from_dictionary(JSON.parse_string(text))
+	var back := GSBotDemoEpisode.from_dictionary(JSON.parse_string(text))
 	_check(back.ticks == episode.ticks and back.key == "17>9", "an episode survives JSON")
 
 	var made := {}
@@ -433,7 +433,7 @@ func _test_demo_off_and_privacy() -> void:
 
 	var _s3 := (made["bot_record"] as FakeCvar).set_value("0")
 	_check(not rec.config.record and not rec.is_on(), "bot_record 0 switches it off")
-	_check(rec.begin("someone", "ride", "17>9").code() == DotError.CODE_FORBIDDEN, "and no episode begins")
+	_check(rec.begin("someone", "ride", "17>9").code() == GSError.CODE_FORBIDDEN, "and no episode begins")
 	var _open := rec.config.record
 	rec.config.record = true
 	var _b := rec.begin("late", "ride", "")
@@ -444,7 +444,7 @@ func _test_demo_off_and_privacy() -> void:
 	_check(rec.queued() == 0 and rec.written == 1, "and flushes what was queued", "%d queued, %d written" % [rec.queued(), rec.written])
 	_check(list.size() >= 9, "one cvar per setting", str(list.size()))
 
-	var cfg := DotBotDemoConfig.new()
+	var cfg := GSBotDemoConfig.new()
 	var applied := cfg.apply_dictionary({"rate": 24, "token": "s3cret", "store": "memory", "bogus": 1}, "file", true)
 	_check(applied.has("rate") and cfg.rate == 24.0 and cfg.store == "memory", "a config file layers over the defaults")
 	var shown := "\n".join(cfg.describe_lines())

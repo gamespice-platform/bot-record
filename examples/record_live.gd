@@ -12,7 +12,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var url := (OS.get_environment("GS_SQL_URL") if OS.has_environment("GS_SQL_URL") else OS.get_environment("DOT_SQL_URL"))
 	var name := (OS.get_environment("GS_SQL_DIALECT") if OS.has_environment("GS_SQL_DIALECT") else OS.get_environment("DOT_SQL_DIALECT"))
 	var token_file := (OS.get_environment("GS_SQL_TOKEN_FILE") if OS.has_environment("GS_SQL_TOKEN_FILE") else OS.get_environment("DOT_SQL_TOKEN_FILE"))
@@ -31,26 +31,26 @@ func _ready() -> void:
 	}
 	# GameSpice SQL by path, as the store does, so this file parses without it.
 	var sql_script: Script = load("res://addons/dot_sql/core/dot_sql.gd")
-	var make := func() -> DotBotDemoStore:
-		var made: DotResult = sql_script.call("from_config", db, self)
-		var s := DotBotDemoStoreSql.new(made.value)
-		var _o: DotResult = await s.open()
+	var make := func() -> GSBotDemoStore:
+		var made: GSResult = sql_script.call("from_config", db, self)
+		var s := GSBotDemoStoreSql.new(made.value)
+		var _o: GSResult = await s.open()
 		return s
 
 	# A previous failed run may have left the table; start from nothing so the migration runs.
-	var first: DotBotDemoStore = await make.call()
-	await first.driver.execute("DROP TABLE IF EXISTS %s" % DotBotDemoStoreSql.TABLE)
-	await first.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [DotBotDemoStoreSql.COMPONENT])
+	var first: GSBotDemoStore = await make.call()
+	await first.driver.execute("DROP TABLE IF EXISTS %s" % GSBotDemoStoreSql.TABLE)
+	await first.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
 
-	var store: DotBotDemoStore = await make.call()
-	var opened: DotResult = await store.open()
+	var store: GSBotDemoStore = await make.call()
+	var opened: GSResult = await store.open()
 	_check(opened.ok, "the migration creates the table on a real %s" % name, str(opened.error.message if not opened.ok else ""))
-	var again: DotResult = await store.open()
+	var again: GSResult = await store.open()
 	_check(again.ok, "opening again does not migrate twice")
 	_check(store.driver != null, "the driver is built from the settings")
 	await Contract.run(store, make, "live", _check)
-	await store.driver.execute("DROP TABLE IF EXISTS %s" % DotBotDemoStoreSql.TABLE)
-	await store.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [DotBotDemoStoreSql.COMPONENT])
+	await store.driver.execute("DROP TABLE IF EXISTS %s" % GSBotDemoStoreSql.TABLE)
+	await store.driver.execute("DELETE FROM dot_sql_migrations WHERE component = ?", [GSBotDemoStoreSql.COMPONENT])
 	await store.close()
 
 	print("")

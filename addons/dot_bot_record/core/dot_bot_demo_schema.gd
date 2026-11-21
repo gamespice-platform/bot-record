@@ -1,4 +1,4 @@
-class_name DotBotDemoSchema
+class_name GSBotDemoSchema
 extends RefCounted
 
 ## What one kind of episode records: a name, a version and two ordered field lists, each field a name, a size and a scale.
@@ -24,22 +24,22 @@ var keep_outcomes: PackedStringArray = PackedStringArray()
 var _id: String = ""
 
 
-static func make(p_kind: String, p_version: int = 1) -> DotBotDemoSchema:
-	var s := DotBotDemoSchema.new()
+static func make(p_kind: String, p_version: int = 1) -> GSBotDemoSchema:
+	var s := GSBotDemoSchema.new()
 	s.kind = p_kind
 	s.version = p_version
 	return s
 
 
 ## Adds an observation field of [param size] floats, each divided by [param scale] when learned from.
-func add_observation(field: String, size: int = 1, scale: float = 1.0) -> DotBotDemoSchema:
+func add_observation(field: String, size: int = 1, scale: float = 1.0) -> GSBotDemoSchema:
 	observation.append([field, size, scale, false])
 	_id = ""
 	return self
 
 
 ## Adds an action field. A [param discrete] field (buttons) keeps the most frequent value over a gap, not the mean.
-func add_action(field: String, size: int = 1, scale: float = 1.0, discrete: bool = false) -> DotBotDemoSchema:
+func add_action(field: String, size: int = 1, scale: float = 1.0, discrete: bool = false) -> GSBotDemoSchema:
 	action.append([field, size, scale, discrete])
 	_id = ""
 	return self
@@ -70,25 +70,25 @@ func has_discrete() -> bool:
 
 
 ## Fails with CODE_INVALID naming the first problem.
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if kind.strip_edges() == "" or kind.contains(",") or kind.contains("/") or kind.contains("@"):
-		return DotResult.fail(DotError.CODE_INVALID, "A schema kind is a plain word, not '%s'." % kind)
+		return GSResult.fail(GSError.CODE_INVALID, "A schema kind is a plain word, not '%s'." % kind)
 	if version < 1:
-		return DotResult.fail(DotError.CODE_INVALID, "Schema '%s' has version %d, which must be 1 or more." % [kind, version])
+		return GSResult.fail(GSError.CODE_INVALID, "Schema '%s' has version %d, which must be 1 or more." % [kind, version])
 	if observation.is_empty() or action.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "Schema '%s' needs at least one observation and one action field." % kind)
+		return GSResult.fail(GSError.CODE_INVALID, "Schema '%s' needs at least one observation and one action field." % kind)
 	var seen := {}
 	for group: Array in [observation, action]:
 		for row: Array in group:
 			var field := String(row[COL_NAME])
 			if field == "" or seen.has(field):
-				return DotResult.fail(DotError.CODE_INVALID, "Schema '%s' has an empty or repeated field '%s'." % [kind, field])
+				return GSResult.fail(GSError.CODE_INVALID, "Schema '%s' has an empty or repeated field '%s'." % [kind, field])
 			seen[field] = true
 			if int(row[COL_SIZE]) < 1:
-				return DotResult.fail(DotError.CODE_INVALID, "Field '%s' of '%s' has size %d." % [field, kind, int(row[COL_SIZE])])
+				return GSResult.fail(GSError.CODE_INVALID, "Field '%s' of '%s' has size %d." % [field, kind, int(row[COL_SIZE])])
 			if float(row[COL_SCALE]) <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "Field '%s' of '%s' needs a scale above zero." % [field, kind])
-	return DotResult.success(self)
+				return GSResult.fail(GSError.CODE_INVALID, "Field '%s' of '%s' needs a scale above zero." % [field, kind])
+	return GSResult.success(self)
 
 
 ## A hash of the kind, version and fields.
