@@ -13,10 +13,10 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	var url := (OS.get_environment("GS_SQL_URL") if OS.has_environment("GS_SQL_URL") else OS.get_environment("GS_SQL_URL"))
-	var name := (OS.get_environment("GS_SQL_DIALECT") if OS.has_environment("GS_SQL_DIALECT") else OS.get_environment("GS_SQL_DIALECT"))
-	var token_file := (OS.get_environment("GS_SQL_TOKEN_FILE") if OS.has_environment("GS_SQL_TOKEN_FILE") else OS.get_environment("GS_SQL_TOKEN_FILE"))
-	var direct := (OS.get_environment("GS_SQL_SQLITE_PATH") if OS.has_environment("GS_SQL_SQLITE_PATH") else OS.get_environment("GS_SQL_SQLITE_PATH"))
+	var url := OS.get_environment("GS_SQL_URL")
+	var name := OS.get_environment("GS_SQL_DIALECT")
+	var token_file := OS.get_environment("GS_SQL_TOKEN_FILE")
+	var direct := OS.get_environment("GS_SQL_SQLITE_PATH")
 	if direct != "":
 		name = "sqlite (extension)"
 	elif url == "" or name == "" or token_file == "":
